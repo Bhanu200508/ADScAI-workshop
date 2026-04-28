@@ -33,9 +33,11 @@ so I can pick up my food on time without repeatedly checking.
 
 ## V1 Decision Log (Implementation Rules)
 
+- **Invariant (V1):** Exactly one `ORDER_READY` notification exists per order for the lifetime of that order.
 - **Trigger rule (V1):** Create a ready notification on any transition into `READY_FOR_PICKUP`, regardless of prior status.
+- **Create-path rule (V1):** If an order is created directly with status `READY_FOR_PICKUP`, create the `ORDER_READY` notification immediately at create time.
 - **Idempotency:** Notification creation must be idempotent. Repeated sets to `READY_FOR_PICKUP` must not create duplicates.
-- **Delivery model (V1):** Notifications are pull-based (visible via notification fetch on next client interaction). Real-time delivery (SSE/WebSocket) is out of scope for V1.
+- **Delivery model (V1):** Notifications are pull-based: they are shown on notifications fetch (`GET /notifications`) and reflected in unread badge count on next client interaction. Real-time delivery (SSE/WebSocket) is out of scope for V1.
 - **User actions (V1):** Notifications support read/unread only; deletion is out of scope.
 - **Duplicate prevention strategy:** Enforce both:
   - **DB hard guard:** unique constraint on (`orderId`, `type`)
@@ -51,8 +53,10 @@ so I can pick up my food on time without repeatedly checking.
 
 1. Given a placed order, when status changes to `READY_FOR_PICKUP`, then one unread notification is visible to that user.
 2. Given an order already notified as ready, when the status is updated again to `READY_FOR_PICKUP`, then no duplicate notification is created.
-3. Given an unread ready notification, when user opens notifications and marks it read, then unread count decreases by one.
-4. Given multiple users, each user can only see notifications for their own orders.
+3. Given an order created directly as `READY_FOR_PICKUP`, then one unread `ORDER_READY` notification is created immediately and no second ready notification is later created for that order.
+4. Given unread and read notifications for a user, when `GET /notifications` is fetched, then both lists are sorted by `createdAt` in descending order.
+5. Given an unread ready notification, when user opens notifications and marks it read, then unread count decreases by one.
+6. Given multiple users, each user can only see notifications for their own orders.
 
 ## Data/Domain Notes
 
